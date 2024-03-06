@@ -1,0 +1,5 @@
+venv/
+models/
+__pycache__/
+output.png
+output.latent

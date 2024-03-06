@@ -1,0 +1,11 @@
+--extra-index-url https://download.pytorch.org/whl/cu118
+transformers
+torch
+torchvision
+numpy
+fire
+pillow
+numpy
+einops
+sentencepiece
+protobuf
