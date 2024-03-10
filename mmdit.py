@@ -617,8 +617,3 @@ class MMDiT(nn.Module):
 
         x = self.unpatchify(x, hw=hw)  # (N, out_channels, H, W)
         return x
-
-
-class CoreMMDITWrapper(MMDiT):
-    def forward(self, x: torch.Tensor, timesteps: torch.Tensor, context: Optional[torch.Tensor] = None, y: Optional[torch.Tensor] = None) -> torch.Tensor:
-        return super().forward(x, timesteps, context=context, y=y)

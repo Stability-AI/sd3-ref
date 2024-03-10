@@ -18,6 +18,7 @@ import numpy as np
 
 
 def load_into(f, model, prefix, device, dtype=None):
+    """Just a debugging-friendly hack to apply the weights in a safetensors file to the pytorch module."""
     for key in f.keys():
         if key.startswith(prefix):
             path = key[len(prefix):].split(".")
