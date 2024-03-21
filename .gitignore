@@ -3,3 +3,4 @@ models/
 __pycache__/
 *.png
 *.latent
+tests.py

@@ -3,6 +3,8 @@
 # - `clip_l.safetensors` (OpenAI CLIP-L, same as SDXL)
 # - `t5xxl.safetensors` (google T5-v1.1-XXL)
 # - `sd3_beta.safetensors`
+# Also can have
+# - `sd3_vae.safetensors` (holds the VAE separately if needed)
 
 import torch, fire, math
 from safetensors import safe_open
@@ -103,7 +105,10 @@ class VAE:
     def __init__(self, model):
         with safe_open(model, framework="pt", device="cpu") as f:
             self.model = SDVAE(device="cpu", dtype=torch.float16).eval().cpu()
-            load_into(f, self.model, "first_stage_model.", "cpu", torch.float16)
+            prefix = ""
+            if any(k.startswith("first_stage_model.") for k in f.keys()):
+                prefix = "first_stage_model."
+            load_into(f, self.model, prefix, "cpu", torch.float16)
 
 
 #################################################################################################
@@ -126,11 +131,13 @@ STEPS = 50
 SEED = 1
 # Actual model file path
 MODEL = "models/sd3_beta.safetensors"
+# VAE model file path, or set "None" to use the same model file
+VAEFile = "models/sd3_vae.safetensors"
 # Output file path
 OUTPUT = "output.png"
 
 class SD3Inferencer:
-    def load(self, model=MODEL, shift=SHIFT):
+    def load(self, model=MODEL, vae=VAEFile, shift=SHIFT):
         print("Loading tokenizers...")
         # NOTE: if you need a reference impl for a high performance CLIP tokenizer instead of just using the HF transformers one,
         # check https://github.com/Stability-AI/StableSwarmUI/blob/master/src/Utils/CliplikeTokenizer.cs
@@ -145,7 +152,7 @@ class SD3Inferencer:
         print("Loading SD3 model...")
         self.sd3 = SD3(model, shift)
         print("Loading VAE model...")
-        self.vae = VAE(model)
+        self.vae = VAE(vae or model)
         print("Models loaded.")
 
     def get_empty_latent(self, width, height):
@@ -228,9 +235,9 @@ class SD3Inferencer:
         print("Done")
 
 @torch.no_grad()
-def main(prompt=PROMPT, width=WIDTH, height=HEIGHT, steps=STEPS, cfg_scale=CFG_SCALE, shift=SHIFT, model=MODEL, seed=SEED, output=OUTPUT):
+def main(prompt=PROMPT, width=WIDTH, height=HEIGHT, steps=STEPS, cfg_scale=CFG_SCALE, shift=SHIFT, model=MODEL, vae=VAEFile, seed=SEED, output=OUTPUT):
     inferencer = SD3Inferencer()
-    inferencer.load(model, shift)
+    inferencer.load(model, vae, shift)
     inferencer.gen_image(prompt, width, height, steps, cfg_scale, seed, output)
 
 fire.Fire(main)
