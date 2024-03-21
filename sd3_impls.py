@@ -221,6 +221,18 @@ class AttnBlock(torch.nn.Module):
         return x + hidden
 
 
+class Downsample(torch.nn.Module):
+    def __init__(self, in_channels, dtype=torch.float32, device=None):
+        super().__init__()
+        self.conv = torch.nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=0, dtype=dtype, device=device)
+
+    def forward(self, x):
+        pad = (0,1,0,1)
+        x = torch.nn.functional.pad(x, pad, mode="constant", value=0)
+        x = self.conv(x)
+        return x
+
+
 class Upsample(torch.nn.Module):
     def __init__(self, in_channels, dtype=torch.float32, device=None):
         super().__init__()
@@ -230,6 +242,61 @@ class Upsample(torch.nn.Module):
         x = torch.nn.functional.interpolate(x, scale_factor=2.0, mode="nearest")
         x = self.conv(x)
         return x
+
+
+class VAEEncoder(torch.nn.Module):
+    def __init__(self, ch=128, ch_mult=(1,2,4,4), num_res_blocks=2, in_channels=3, z_channels=16, dtype=torch.float32, device=None):
+        super().__init__()
+        self.num_resolutions = len(ch_mult)
+        self.num_res_blocks = num_res_blocks
+        # downsampling
+        self.conv_in = torch.nn.Conv2d(in_channels, ch, kernel_size=3, stride=1, padding=1, dtype=dtype, device=device)
+        in_ch_mult = (1,) + tuple(ch_mult)
+        self.in_ch_mult = in_ch_mult
+        self.down = torch.nn.ModuleList()
+        for i_level in range(self.num_resolutions):
+            block = torch.nn.ModuleList()
+            attn = torch.nn.ModuleList()
+            block_in = ch*in_ch_mult[i_level]
+            block_out = ch*ch_mult[i_level]
+            for i_block in range(num_res_blocks):
+                block.append(ResnetBlock(in_channels=block_in, out_channels=block_out, dtype=dtype, device=device))
+                block_in = block_out
+            down = torch.nn.Module()
+            down.block = block
+            down.attn = attn
+            if i_level != self.num_resolutions - 1:
+                down.downsample = Downsample(block_in, dtype=dtype, device=device)
+            self.down.append(down)
+        # middle
+        self.mid = torch.nn.Module()
+        self.mid.block_1 = ResnetBlock(in_channels=block_in, out_channels=block_in, dtype=dtype, device=device)
+        self.mid.attn_1 = AttnBlock(block_in, dtype=dtype, device=device)
+        self.mid.block_2 = ResnetBlock(in_channels=block_in, out_channels=block_in, dtype=dtype, device=device)
+        # end
+        self.norm_out = Normalize(block_in, dtype=dtype, device=device)
+        self.conv_out = torch.nn.Conv2d(block_in, 2 * z_channels, kernel_size=3, stride=1, padding=1, dtype=dtype, device=device)
+        self.swish = torch.nn.SiLU(inplace=True)
+
+    def forward(self, x):
+        # downsampling
+        hs = [self.conv_in(x)]
+        for i_level in range(self.num_resolutions):
+            for i_block in range(self.num_res_blocks):
+                h = self.down[i_level].block[i_block](hs[-1])
+                hs.append(h)
+            if i_level != self.num_resolutions-1:
+                hs.append(self.down[i_level].downsample(hs[-1]))
+        # middle
+        h = hs[-1]
+        h = self.mid.block_1(h)
+        h = self.mid.attn_1(h)
+        h = self.mid.block_2(h)
+        # end
+        h = self.norm_out(h)
+        h = self.swish(h)
+        h = self.conv_out(h)
+        return h
 
 
 class VAEDecoder(torch.nn.Module):
@@ -286,11 +353,19 @@ class VAEDecoder(torch.nn.Module):
 
 
 class SDVAE(torch.nn.Module):
-    """Note that the VAE Encoder is not included in our current reference SD3 models. Might be added on release. Not needed for most gens anyway, only for img2img (Init Image), so for this codebase we'll just ignore it, and implement only the decoder."""
     def __init__(self, dtype=torch.float32, device=None):
         super().__init__()
+        self.encoder = VAEEncoder(dtype=dtype, device=device)
         self.decoder = VAEDecoder(dtype=dtype, device=device)
 
     @torch.autocast("cuda", dtype=torch.float16)
     def decode(self, latent):
         return self.decoder(latent)
+
+    @torch.autocast("cuda", dtype=torch.float16)
+    def encode(self, image):
+        hidden = self.encoder(image)
+        mean, logvar = torch.chunk(hidden, 2, dim=1)
+        logvar = torch.clamp(logvar, -30.0, 20.0)
+        std = torch.exp(0.5 * logvar)
+        return mean + std * torch.randn_like(mean)

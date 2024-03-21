@@ -22,7 +22,7 @@ import numpy as np
 def load_into(f, model, prefix, device, dtype=None):
     """Just a debugging-friendly hack to apply the weights in a safetensors file to the pytorch module."""
     for key in f.keys():
-        if key.startswith(prefix):
+        if key.startswith(prefix) and not key.startswith("loss."):
             path = key[len(prefix):].split(".")
             obj = model
             for p in path:
@@ -133,6 +133,10 @@ SEED = 1
 MODEL = "models/sd3_beta.safetensors"
 # VAE model file path, or set "None" to use the same model file
 VAEFile = "models/sd3_vae.safetensors"
+# Optional init image file path
+INIT_IMAGE = None
+# If init_image is given, this is the percentage of denoising steps to run (1.0 = full denoise, 0.0 = no denoise at all)
+DENOISE = 0.6
 # Output file path
 OUTPUT = "output.png"
 
@@ -194,12 +198,13 @@ class SD3Inferencer:
         cond, pooled = (cond[0].half().cuda(), cond[1].half().cuda())
         return { "c_crossattn": cond, "y": pooled }
 
-    def do_sampling(self, latent, seed, conditioning, neg_cond, steps, cfg_scale) -> torch.Tensor:
+    def do_sampling(self, latent, seed, conditioning, neg_cond, steps, cfg_scale, denoise=1.0) -> torch.Tensor:
         print("Sampling...")
         latent = latent.half().cuda()
         self.sd3.model = self.sd3.model.cuda()
         noise = self.get_noise(seed, latent).cuda()
         sigmas = self.get_sigmas(self.sd3.model.model_sampling, steps).cuda()
+        sigmas = sigmas[int(steps * (1 - denoise)):]
         conditioning = self.fix_cond(conditioning)
         neg_cond = self.fix_cond(neg_cond)
         extra_args = { "cond": conditioning, "uncond": neg_cond, "cond_scale": cfg_scale }
@@ -208,6 +213,21 @@ class SD3Inferencer:
         latent = SD3LatentFormat().process_out(latent)
         self.sd3.model = self.sd3.model.cpu()
         print("Sampling done")
+        return latent
+
+    def vae_encode(self, image) -> torch.Tensor:
+        print("Encoding image to latent...")
+        image = image.convert("RGB")
+        image_np = np.array(image).astype(np.float32) / 255.0
+        image_np = np.moveaxis(image_np, 2, 0)
+        batch_images = np.expand_dims(image_np, axis=0).repeat(1, axis=0)
+        image_torch = torch.from_numpy(batch_images)
+        image_torch = 2.0 * image_torch - 1.0
+        image_torch = image_torch.cuda()
+        self.vae.model = self.vae.model.cuda()
+        latent = self.vae.model.encode(image_torch).cpu()
+        self.vae.model = self.vae.model.cpu()
+        print("Encoded")
         return latent
 
     def vae_decode(self, latent) -> Image.Image:
@@ -224,20 +244,25 @@ class SD3Inferencer:
         print("Decoded")
         return out_image
 
-    def gen_image(self, prompt=PROMPT, width=WIDTH, height=HEIGHT, steps=STEPS, cfg_scale=CFG_SCALE, seed=SEED, output=OUTPUT):
+    def gen_image(self, prompt=PROMPT, width=WIDTH, height=HEIGHT, steps=STEPS, cfg_scale=CFG_SCALE, seed=SEED, output=OUTPUT, init_image=INIT_IMAGE, denoise=DENOISE):
         latent = self.get_empty_latent(width, height)
+        if init_image:
+            image_data = Image.open(init_image)
+            image_data = image_data.resize((width, height), Image.LANCZOS)
+            latent = self.vae_encode(image_data)
+            latent = SD3LatentFormat().process_in(latent)
         conditioning = self.get_cond(prompt)
         neg_cond = self.get_cond("")
-        sampled_latent = self.do_sampling(latent, seed, conditioning, neg_cond, steps, cfg_scale)
+        sampled_latent = self.do_sampling(latent, seed, conditioning, neg_cond, steps, cfg_scale, denoise if init_image else 1.0)
         image = self.vae_decode(sampled_latent)
         print(f"Will save to {output}")
         image.save(output)
         print("Done")
 
 @torch.no_grad()
-def main(prompt=PROMPT, width=WIDTH, height=HEIGHT, steps=STEPS, cfg_scale=CFG_SCALE, shift=SHIFT, model=MODEL, vae=VAEFile, seed=SEED, output=OUTPUT):
+def main(prompt=PROMPT, width=WIDTH, height=HEIGHT, steps=STEPS, cfg_scale=CFG_SCALE, shift=SHIFT, model=MODEL, vae=VAEFile, seed=SEED, output=OUTPUT, init_image=INIT_IMAGE, denoise=DENOISE):
     inferencer = SD3Inferencer()
     inferencer.load(model, vae, shift)
-    inferencer.gen_image(prompt, width, height, steps, cfg_scale, seed, output)
+    inferencer.gen_image(prompt, width, height, steps, cfg_scale, seed, output, init_image, denoise)
 
 fire.Fire(main)
