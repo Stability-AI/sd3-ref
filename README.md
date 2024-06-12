@@ -6,6 +6,8 @@ Contains code for the text encoders (OpenAI CLIP-L/14, OpenCLIP bigG, Google T5-
 
 Everything you need to inference SD3 excluding the weights files.
 
+Note: this repo is an early reference lib meant to assist partner organizations in implementing SD3. For normal inference, use [Comfy](https://github.com/comfyanonymous/ComfyUI) or UIs based on it such as [Swarm](https://github.com/Stability-AI/StableSwarmUI).
+
 ### Install
 
 ```sh
@@ -22,7 +24,7 @@ python3 -s -m pip install -r requirements.txt
 # Generate a cat on ref model with default settings
 python3 -s sd3_infer.py
 # Generate a 1024 cat on SD3-8B
-python3 -s sd3_infer.py --width 1024 --height 1024 --shift 3 --model models/sd3_8b_beta.safetensors --prompt "cute wallpaper art of a cat"
+python3 -s sd3_infer.py --width 1024 --height 1024 --shift 3 --model models/sd3_medium.safetensors --prompt "cute wallpaper art of a cat"
 # Or for parameter listing
 python3 -s sd3_infer.py --help
 ```
@@ -43,6 +45,24 @@ Images will be output to `output.png` by default
 
 ### Legal
 
-Built by Alex Goodwin for Stability AI and private partners under NDA, heavily based on internal ComfyUI and SGM codebases. Uses some upstream logic from HuggingFace, Google, PyTorch.
+MIT License
 
-Do not redistribute.
+Copyright (c) 2024 Stability AI
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

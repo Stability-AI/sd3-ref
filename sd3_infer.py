@@ -2,7 +2,7 @@
 # - `clip_g.safetensors` (openclip bigG, same as SDXL)
 # - `clip_l.safetensors` (OpenAI CLIP-L, same as SDXL)
 # - `t5xxl.safetensors` (google T5-v1.1-XXL)
-# - `sd3_beta.safetensors`
+# - `sd3_medium.safetensors` (or whichever main MMDiT model file)
 # Also can have
 # - `sd3_vae.safetensors` (holds the VAE separately if needed)
 
@@ -116,23 +116,24 @@ class VAE:
 #################################################################################################
 
 
-# Note: latest 8B-1024 prefers SHIFT=3.0, but other models prefer SHIFT=1.0
-SHIFT = 1.0
+# Note: Sigma shift value, publicly released models use 3.0
+SHIFT = 3.0
 # Naturally, adjust to the width/height of the model you have
-WIDTH = 512
-HEIGHT = 512
+WIDTH = 1024
+HEIGHT = 1024
 # Pick your prompt
 PROMPT = "a photo of a cat"
-# Recent models prefer lower CFGs, older models prefer higher
+# Most models prefer the range of 4-5, but still work well around 7
 CFG_SCALE = 5
 # Different models want different step counts but most will be good at 50, albeit that's slow to run
+# sd3_medium is quite decent at 28 steps
 STEPS = 50
 # Random seed
 SEED = 1
 # Actual model file path
-MODEL = "models/sd3_beta.safetensors"
-# VAE model file path, or set "None" to use the same model file
-VAEFile = "models/sd3_vae.safetensors"
+MODEL = "models/sd3_medium.safetensors"
+# VAE model file path, or set None to use the same model file
+VAEFile = None # "models/sd3_vae.safetensors"
 # Optional init image file path
 INIT_IMAGE = None
 # If init_image is given, this is the percentage of denoising steps to run (1.0 = full denoise, 0.0 = no denoise at all)
