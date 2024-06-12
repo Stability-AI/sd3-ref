@@ -41,7 +41,7 @@ Images will be output to `output.png` by default
     - `clip_g.safetensors` (openclip bigG, same as SDXL, can grab a public copy)
     - `clip_l.safetensors` (OpenAI CLIP-L, same as SDXL, can grab a public copy)
     - `t5xxl.safetensors` (google T5-v1.1-XXL, can grab a public copy)
-    - `sd3_beta.safetensors` (internal, private)
+    - `sd3_medium.safetensors` (or whichever main MMDiT model file)
 
 ### Legal
 
