@@ -43,6 +43,15 @@ Images will be output to `output.png` by default
     - `t5xxl.safetensors` (google T5-v1.1-XXL, can grab a public copy)
     - `sd3_medium.safetensors` (or whichever main MMDiT model file)
 
+### Code Origin
+
+The code included here originates from:
+- Stability AI internal research code repository (MM-DiT)
+- Public Stability AI repositories (eg VAE)
+- Some unique code for this reference repo written by Alex Goodwin for Stability AI
+- Some code from ComfyUI internal Stability impl of SD3 (for some code corrections and handlers)
+- HuggingFace and upstream providers (for sections of CLIP/T5 code)
+
 ### Legal
 
 MIT License
@@ -66,3 +75,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+#### Note
+
+Some code in `other_impls` originates from HuggingFace and is subject to [the HuggingFace Transformers Apache2 License](https://github.com/huggingface/transformers/blob/main/LICENSE)
